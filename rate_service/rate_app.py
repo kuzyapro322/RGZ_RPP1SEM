@@ -16,6 +16,7 @@ app = Flask(__name__)
 # ==============================
 
 RATES = {
+    # В учебном задании курс разрешено задать статически.
     "USD": 90.50,
     "EUR": 98.20,
 }
@@ -28,11 +29,14 @@ RATES = {
 @app.get("/rate")
 def get_rate():
     try:
+        # currency приходит из адресной строки: /rate?currency=USD.
         currency = request.args.get("currency", "").upper()
 
+        # Если валюта не USD и не EUR, возвращаем ошибку по условию задания.
         if currency not in RATES:
             return jsonify({"message": "UNKNOWN CURRENCY"}), 400
 
+        # Успешный ответ содержит только курс выбранной валюты.
         return jsonify({"rate": RATES[currency]}), 200
     except Exception:
         return jsonify({"message": "UNEXPECTED ERROR"}), 500

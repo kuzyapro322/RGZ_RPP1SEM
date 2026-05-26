@@ -31,6 +31,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+# db — объект для работы с PostgreSQL: через него объявляются таблицы и выполняются запросы.
 db = SQLAlchemy(app)
 
 
@@ -39,6 +40,7 @@ db = SQLAlchemy(app)
 # ==============================
 
 class User(db.Model):
+    # Таблица users хранит учетные записи пользователей приложения.
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -57,6 +59,7 @@ class User(db.Model):
 # ==============================
 
 class Operation(db.Model):
+    # Таблица operations хранит доходные и расходные операции конкретного пользователя.
     __tablename__ = "operations"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -73,6 +76,7 @@ class Operation(db.Model):
 # ==============================
 
 with app.app_context():
+    # При старте контейнера создаем таблицы, если их еще нет в PostgreSQL.
     db.create_all()
 
 
@@ -81,6 +85,7 @@ with app.app_context():
 # ==============================
 
 def login_required(handler):
+    # Декоратор защищает страницы: без user_id в session пользователь отправляется на вход.
     @wraps(handler)
     def wrapper(*args, **kwargs):
         if "user_id" not in session:
@@ -95,6 +100,7 @@ def login_required(handler):
 # ==============================
 
 def current_user():
+    # Текущий пользователь определяется по user_id, который был записан в session при входе.
     user_id = session.get("user_id")
     if not user_id:
         return None
@@ -106,9 +112,11 @@ def current_user():
 # ==============================
 
 def get_currency_rate(currency):
+    # RUB не нужно запрашивать во внешнем сервисе, потому что операции хранятся в рублях.
     if currency == "RUB":
         return Decimal("1")
 
+    # Для USD/EUR отправляем HTTP-запрос в отдельный Flask-сервис rate_service.
     rate_service_url = os.getenv("RATE_SERVICE_URL", "http://localhost:5001/rate")
     response = requests.get(rate_service_url, params={"currency": currency}, timeout=5)
     response.raise_for_status()
@@ -122,6 +130,7 @@ def get_currency_rate(currency):
 # ==============================
 
 def convert_from_rub(value, rate):
+    # Делим рублевую сумму на курс и округляем как денежное значение до копеек.
     converted = Decimal(value) / rate
     return converted.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -132,6 +141,7 @@ def convert_from_rub(value, rate):
 
 @app.get("/")
 def index():
+    # Главная страница только перенаправляет пользователя в нужный раздел.
     if current_user():
         return redirect(url_for("operations"))
     return redirect(url_for("login"))
@@ -143,9 +153,11 @@ def index():
 
 @app.route("/reg", methods=["GET", "POST"])
 def register():
+    # GET показывает форму регистрации, POST создает пользователя.
     if request.method == "GET":
         return render_template("register.html")
 
+    # Поддерживаем и JSON-запрос из задания, и обычную HTML-форму из Jinja-шаблона.
     data = request.get_json(silent=True) or request.form
     name = str(data.get("name", "")).strip()
     password = str(data.get("password", "")).strip()
@@ -163,6 +175,7 @@ def register():
             return jsonify({"message": message}), 409
         return render_template("register.html", error=message), 409
 
+    # Пароль сохраняется не открытым текстом, а только как безопасный хэш.
     user = User(name=name, password_hash=generate_password_hash(password))
     db.session.add(user)
     db.session.commit()
@@ -179,6 +192,7 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    # GET показывает форму входа, POST проверяет логин и пароль.
     if request.method == "GET":
         return render_template("login.html")
 
@@ -186,6 +200,7 @@ def login():
     password = request.form.get("password", "").strip()
     user = User.query.filter_by(name=name).first()
 
+    # check_password_hash сравнивает введенный пароль с хэшем из базы данных.
     if not user or not check_password_hash(user.password_hash, password):
         return render_template("login.html", error="Неверный логин или пароль."), 401
 
@@ -199,6 +214,7 @@ def login():
 
 @app.post("/logout")
 def logout():
+    # Очистка session удаляет признак авторизации пользователя.
     session.clear()
     return redirect(url_for("login"))
 
@@ -210,6 +226,7 @@ def logout():
 @app.route("/add_operation", methods=["GET", "POST"])
 @login_required
 def add_operation():
+    # GET показывает форму добавления операции, POST сохраняет операцию в PostgreSQL.
     if request.method == "GET":
         return render_template("add_operation.html")
 
@@ -217,6 +234,7 @@ def add_operation():
     user = current_user()
 
     try:
+        # Приводим данные формы к нужным типам: строка типа, Decimal для суммы, date для даты.
         operation_type = str(data.get("type_operation", "")).strip().lower()
         operation_sum = Decimal(str(data.get("sum", "0"))).quantize(Decimal("0.01"))
         operation_date = date.fromisoformat(str(data.get("date", "")))
@@ -226,6 +244,7 @@ def add_operation():
         if operation_sum <= 0:
             raise ValueError("Сумма должна быть больше 0.")
 
+        # В БД сохраняется рублевая сумма; конвертация выполняется позже при просмотре.
         operation = Operation(
             date=operation_date,
             sum=operation_sum,
@@ -239,6 +258,7 @@ def add_operation():
             return jsonify({"message": "Операция добавлена", "operation_id": operation.id}), 200
         return render_template("add_operation.html", success="Операция успешно добавлена.")
     except Exception as error:
+        # Если при сохранении возникла ошибка, откатываем транзакцию, чтобы не оставить мусор в БД.
         db.session.rollback()
         if request.is_json:
             return jsonify({"message": str(error)}), 400
@@ -253,10 +273,12 @@ def add_operation():
 @login_required
 def operations():
     try:
+        # Валюта приходит из query-параметра: /operations?currency=USD.
         currency = request.args.get("currency", "RUB").upper()
         if currency not in ("RUB", "USD", "EUR"):
             return render_template("operations.html", error="Неизвестная валюта."), 400
 
+        # Получаем только операции текущего пользователя, чужие операции не показываются.
         rate = get_currency_rate(currency)
         user_operations = (
             Operation.query
@@ -265,6 +287,7 @@ def operations():
             .all()
         )
 
+        # Готовим список для шаблона: рядом с рублевой суммой добавляем сумму в выбранной валюте.
         converted_operations = []
         for operation in user_operations:
             converted_operations.append({
@@ -292,6 +315,7 @@ def operations():
 @app.post("/delete_operation/<int:operation_id>")
 @login_required
 def delete_operation(operation_id):
+    # Вариант 7: ищем операцию по id и одновременно проверяем, что она принадлежит текущему пользователю.
     operation = Operation.query.filter_by(
         id=operation_id,
         user_id=session["user_id"],
@@ -303,6 +327,7 @@ def delete_operation(operation_id):
             error="Операция не найдена или не принадлежит текущему пользователю.",
         ), 404
 
+    # Если запись найдена, удаляем ее из PostgreSQL и сохраняем изменение.
     db.session.delete(operation)
     db.session.commit()
 
