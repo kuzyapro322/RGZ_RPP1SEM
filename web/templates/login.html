@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="auth-panel">
+    <div>
+        <p class="eyebrow">РГЗ, вариант 7</p>
+        <h1>Вход в приложение</h1>
+        <p class="muted">После входа можно добавлять, просматривать и удалять финансовые операции.</p>
+    </div>
+
+    {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form class="form" action="{{ url_for('login') }}" method="post">
+        <label>
+            Логин
+            <input name="name" type="text" required>
+        </label>
+
+        <label>
+            Пароль
+            <input name="password" type="password" required>
+        </label>
+
+        <button class="button" type="submit">Войти</button>
+    </form>
+
+    <p class="muted">Нет аккаунта? <a href="{{ url_for('register') }}">Зарегистрироваться</a></p>
+</section>
+{% endblock %}

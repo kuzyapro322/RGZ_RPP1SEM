@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="content-header">
+    <div>
+        <p class="eyebrow">Пункты 2.1.4 и вариант 7</p>
+        <h1>Операции пользователя {{ user.name if user else "" }}</h1>
+    </div>
+    <a class="button" href="{{ url_for('add_operation') }}">Добавить операцию</a>
+</section>
+
+<section class="toolbar">
+    <form class="currency-form" action="{{ url_for('operations') }}" method="get">
+        <label>
+            Валюта отображения
+            <select name="currency" onchange="this.form.submit()">
+                {% for item in ["RUB", "USD", "EUR"] %}
+                    <option value="{{ item }}" {% if currency == item %}selected{% endif %}>{{ item }}</option>
+                {% endfor %}
+            </select>
+        </label>
+    </form>
+
+    {% if request.args.get("deleted") %}
+        <div class="alert alert-success">Операция успешно удалена.</div>
+    {% endif %}
+</section>
+
+{% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<section class="panel">
+    {% if operations %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Дата</th>
+                    <th>Тип</th>
+                    <th>Сумма, RUB</th>
+                    <th>Сумма, {{ currency }}</th>
+                    <th>Действие</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for operation in operations %}
+                    <tr>
+                        <td>{{ operation.id }}</td>
+                        <td>{{ operation.date.strftime("%d.%m.%Y") }}</td>
+                        <td>
+                            <span class="badge {{ operation.type_operation }}">
+                                {{ "Доход" if operation.type_operation == "income" else "Расход" }}
+                            </span>
+                        </td>
+                        <td>{{ operation.sum_rub }}</td>
+                        <td>{{ operation.converted_sum }}</td>
+                        <td>
+                            <form action="{{ url_for('delete_operation', operation_id=operation.id) }}" method="post">
+                                <button class="button button-danger" type="submit">Удалить</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty-state">
+            <h2>Операций пока нет</h2>
+            <p class="muted">Добавьте первую операцию, чтобы проверить сохранение в PostgreSQL и вывод через Jinja-шаблон.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

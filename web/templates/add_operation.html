@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="content-header">
+    <div>
+        <p class="eyebrow">Пункт 2.1.3</p>
+        <h1>Добавление операции</h1>
+    </div>
+    <a class="button button-light" href="{{ url_for('operations') }}">К списку операций</a>
+</section>
+
+<section class="panel">
+    {% if success %}
+        <div class="alert alert-success">{{ success }}</div>
+    {% endif %}
+
+    {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form class="form operation-form" action="{{ url_for('add_operation') }}" method="post">
+        <label>
+            Тип операции
+            <select name="type_operation" required>
+                <option value="income">Доход</option>
+                <option value="expense">Расход</option>
+            </select>
+        </label>
+
+        <label>
+            Сумма в рублях
+            <input name="sum" type="number" min="0.01" step="0.01" required>
+        </label>
+
+        <label>
+            Дата операции
+            <input name="date" type="date" required>
+        </label>
+
+        <button class="button" type="submit">Добавить операцию</button>
+    </form>
+</section>
+{% endblock %}

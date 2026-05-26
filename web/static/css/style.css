@@ -1,0 +1,284 @@
+/* ==============================
+   Общая часть — Базовое оформление страниц
+   ============================== */
+
+:root {
+    --bg: #f5f7fb;
+    --panel: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --line: #dbe3ef;
+    --primary: #0f9f6e;
+    --primary-dark: #087852;
+    --danger: #dc2626;
+    --danger-dark: #b91c1c;
+    --accent: #c8104a;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+a {
+    color: var(--primary-dark);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+/* ==============================
+   Общая часть — Верхняя панель
+   ============================== */
+
+.topbar {
+    align-items: center;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    min-height: 72px;
+    padding: 12px 32px;
+}
+
+.brand {
+    align-items: center;
+    color: var(--text);
+    display: flex;
+    gap: 14px;
+    font-size: 20px;
+}
+
+.brand img {
+    height: 42px;
+    width: auto;
+}
+
+.page {
+    margin: 0 auto;
+    max-width: 1100px;
+    padding: 36px 24px;
+}
+
+/* ==============================
+   Общая часть — Формы и панели
+   ============================== */
+
+.auth-panel,
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+.auth-panel {
+    margin: 40px auto;
+    max-width: 460px;
+    padding: 32px;
+}
+
+.panel {
+    overflow: hidden;
+}
+
+.form {
+    display: grid;
+    gap: 18px;
+    margin-top: 24px;
+}
+
+.operation-form {
+    padding: 28px;
+}
+
+label {
+    color: var(--text);
+    display: grid;
+    font-size: 14px;
+    font-weight: 700;
+    gap: 8px;
+}
+
+input,
+select {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    font: inherit;
+    padding: 12px 14px;
+}
+
+input:focus,
+select:focus {
+    border-color: var(--primary);
+    outline: 3px solid rgba(15, 159, 110, 0.18);
+}
+
+.button {
+    background: var(--primary);
+    border: 0;
+    border-radius: 8px;
+    color: #ffffff;
+    cursor: pointer;
+    display: inline-flex;
+    font: inherit;
+    font-weight: 700;
+    justify-content: center;
+    padding: 12px 18px;
+}
+
+.button:hover {
+    background: var(--primary-dark);
+}
+
+.button-light {
+    background: #eef6f3;
+    color: var(--primary-dark);
+}
+
+.button-light:hover {
+    background: #dcefe8;
+}
+
+.button-danger {
+    background: var(--danger);
+}
+
+.button-danger:hover {
+    background: var(--danger-dark);
+}
+
+/* ==============================
+   Пункт 2.1.4 — Страница операций
+   ============================== */
+
+.content-header,
+.toolbar {
+    align-items: center;
+    display: flex;
+    gap: 18px;
+    justify-content: space-between;
+    margin-bottom: 22px;
+}
+
+.toolbar {
+    align-items: flex-end;
+}
+
+.currency-form {
+    max-width: 260px;
+    width: 100%;
+}
+
+.eyebrow {
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0;
+    margin: 0 0 8px;
+    text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+    margin-top: 0;
+}
+
+h1 {
+    font-size: 32px;
+    line-height: 1.15;
+    margin-bottom: 8px;
+}
+
+h2 {
+    font-size: 22px;
+}
+
+.muted {
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+th,
+td {
+    border-bottom: 1px solid var(--line);
+    padding: 16px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+th {
+    background: #f0f4f8;
+    color: #374151;
+    font-size: 13px;
+    text-transform: uppercase;
+}
+
+.badge {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 6px 10px;
+}
+
+.badge.income {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.badge.expense {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.alert {
+    border-radius: 8px;
+    font-weight: 700;
+    padding: 12px 14px;
+}
+
+.alert-success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.alert-error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.empty-state {
+    padding: 42px;
+    text-align: center;
+}
+
+@media (max-width: 760px) {
+    .topbar,
+    .content-header,
+    .toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .topbar {
+        padding: 16px;
+    }
+
+    table {
+        display: block;
+        overflow-x: auto;
+    }
+}

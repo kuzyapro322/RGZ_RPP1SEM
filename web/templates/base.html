@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or "Учет финансов" }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="{{ url_for('operations') }}">
+            <img src="{{ url_for('static', filename='img/nstu_logo.png') }}" alt="Логотип НГТУ НЭТИ">
+            <span>Учет финансов</span>
+        </a>
+
+        {% if session.get("user_id") %}
+            <form action="{{ url_for('logout') }}" method="post">
+                <button class="button button-light" type="submit">Выйти</button>
+            </form>
+        {% endif %}
+    </header>
+
+    <main class="page">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
