@@ -18,23 +18,24 @@
         <div class="alert alert-error">{{ error }}</div>
     {% endif %}
 
+    {% set selected_type = form_data.get("type_operation", "income") if form_data else "income" %}
     <form class="form operation-form" action="{{ url_for('add_operation') }}" method="post">
         <label>
             Тип операции
             <select name="type_operation" required>
-                <option value="income">Доход</option>
-                <option value="expense">Расход</option>
+                <option value="income" {% if selected_type == "income" %}selected{% endif %}>Доход</option>
+                <option value="expense" {% if selected_type == "expense" %}selected{% endif %}>Расход</option>
             </select>
         </label>
 
         <label>
             Сумма в рублях
-            <input name="sum" type="number" min="0.01" step="0.01" required>
+            <input name="sum" type="number" min="0.01" step="0.01" value="{{ form_data.get('sum', '') if form_data else '' }}" required>
         </label>
 
         <label>
             Дата операции
-            <input name="date" type="date" required>
+            <input name="date" type="date" min="{{ min_operation_date }}" max="{{ today }}" value="{{ form_data.get('date', '') if form_data else '' }}" required>
         </label>
 
         <button class="button" type="submit">Добавить операцию</button>

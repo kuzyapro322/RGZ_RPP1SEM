@@ -34,6 +34,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       RATE_SERVICE_URL: http://rate_service:5001/rate
       SECRET_KEY: ${SECRET_KEY}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Novosibirsk}
     ports:
       - "5000:5000"
     depends_on:

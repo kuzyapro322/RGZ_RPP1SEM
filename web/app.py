@@ -1,9 +1,10 @@
 # Импорты
 # os — для общей части: чтения настроек Docker-окружения и скрытых ключей
 # re — для пункта 2.1.2: нормализации и проверки логина
-# datetime.date — для пункта 2.1.3: сохранения даты операции
+# datetime.date, datetime — для пункта 2.1.3: сохранения даты операции и проверки текущей даты
 # decimal.Decimal — для пунктов 2.1.4 и 7: аккуратной работы с денежными суммами и курсами
 # functools.wraps — для общей части: декоратора проверки авторизации
+# zoneinfo.ZoneInfo — для пункта 2.1.3: проверки даты в локальном часовом поясе пользователя
 # flask — для общей части: маршрутов, шаблонов, сессий и HTTP-ответов
 # flask_sqlalchemy.SQLAlchemy — для пункта 2.1.1: работы с PostgreSQL через ORM
 # requests — для пункта 2.1.4: обращения к внешнему сервису курса валют
@@ -12,9 +13,10 @@
 
 import os
 import re
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
+from zoneinfo import ZoneInfo
 
 import requests
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
@@ -48,6 +50,9 @@ db = SQLAlchemy(app)
 # ==============================
 
 LOGIN_PATTERN = re.compile(r"^[a-z0-9_]{3,80}$")
+OPERATION_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+MIN_OPERATION_DATE = date(2000, 1, 1)
+APP_TIMEZONE = ZoneInfo(os.getenv("APP_TIMEZONE", "Asia/Novosibirsk"))
 
 
 def normalize_login(value):
@@ -71,6 +76,47 @@ def validate_password(password):
     if not any(char.isdigit() for char in password):
         return "Пароль должен содержать хотя бы одну цифру."
     return None
+
+
+# ==============================
+# Пункт 2.1.3 — Правила проверки даты операции
+# ==============================
+
+def current_local_date():
+    # В Docker системная дата может идти по UTC, поэтому "сегодня" считаем в локальном часовом поясе проекта.
+    return datetime.now(APP_TIMEZONE).date()
+
+
+def operation_form_context(**extra_context):
+    # Эти значения используются в HTML-форме как подсказка, но основная проверка все равно идет на backend.
+    context = {
+        "min_operation_date": MIN_OPERATION_DATE.isoformat(),
+        "today": current_local_date().isoformat(),
+        "form_data": {},
+    }
+    context.update(extra_context)
+    return context
+
+
+def validate_operation_date(raw_date):
+    # Серверная проверка даты: запрещаем будущие и слишком старые даты, потому что HTML-ограничения можно обойти.
+    raw_date = str(raw_date or "").strip()
+    if not raw_date:
+        raise ValueError("Укажите дату операции.")
+    if not OPERATION_DATE_PATTERN.fullmatch(raw_date):
+        raise ValueError("Дата операции должна быть в формате YYYY-MM-DD.")
+
+    try:
+        operation_date = date.fromisoformat(raw_date)
+    except ValueError:
+        raise ValueError("Дата операции должна быть в формате YYYY-MM-DD.")
+
+    if operation_date > current_local_date():
+        raise ValueError("Дата операции не может быть больше сегодняшней даты.")
+    if operation_date < MIN_OPERATION_DATE:
+        raise ValueError("Дата операции не может быть раньше 2000-01-01.")
+
+    return operation_date
 
 
 # ==============================
@@ -274,20 +320,23 @@ def register():
         message = "Введите логин и пароль."
         if request.is_json:
             return jsonify({"message": message}), 400
-        return render_template("register.html", error=message), 400
+        # Поправка по замечанию преподавателя: при ошибке формы возвращаем введённый логин обратно в шаблон, чтобы пользователь не вводил его заново.
+        return render_template("register.html", error=message, name=name), 400
 
     validation_error = validate_login(name) or validate_password(password)
     if validation_error:
         if request.is_json:
             return jsonify({"message": validation_error}), 400
-        return render_template("register.html", error=validation_error), 400
+        # Поправка по замечанию преподавателя: при ошибке формы возвращаем введённый логин обратно в шаблон, чтобы пользователь не вводил его заново.
+        return render_template("register.html", error=validation_error, name=name), 400
 
     existing_user = User.query.filter_by(name=name).first()
     if existing_user:
         message = "Пользователь с таким логином уже зарегистрирован."
         if request.is_json:
             return jsonify({"message": message}), 409
-        return render_template("register.html", error=message), 409
+        # Поправка по замечанию преподавателя: при ошибке формы возвращаем введённый логин обратно в шаблон, чтобы пользователь не вводил его заново.
+        return render_template("register.html", error=message, name=name), 409
 
     # Пароль сохраняется не открытым текстом, а только как безопасный хэш.
     user = User(name=name, password_hash=generate_password_hash(password))
@@ -310,15 +359,31 @@ def login():
     if request.method == "GET":
         return render_template("login.html")
 
-    name = normalize_login(request.form.get("name", ""))
-    password = request.form.get("password", "").strip()
+    # Поправка по замечанию преподавателя: /login теперь поддерживает не только HTML-форму, но и JSON-запросы.
+    data = request.get_json(silent=True) or request.form
+    name = normalize_login(data.get("name", ""))
+    password = str(data.get("password", "")).strip()
+
+    if not name or not password:
+        message = "Введите логин и пароль."
+        if request.is_json:
+            return jsonify({"message": message}), 400
+        # Поправка по замечанию преподавателя: при ошибке формы возвращаем введённый логин обратно в шаблон, чтобы пользователь не вводил его заново.
+        return render_template("login.html", error=message, name=name), 400
+
     user = User.query.filter_by(name=name).first()
 
     # check_password_hash сравнивает введенный пароль с хэшем из базы данных.
     if not user or not check_password_hash(user.password_hash, password):
-        return render_template("login.html", error="Неверный логин или пароль."), 401
+        message = "Неверный логин или пароль."
+        if request.is_json:
+            return jsonify({"message": message}), 401
+        # Поправка по замечанию преподавателя: при ошибке формы возвращаем введённый логин обратно в шаблон, чтобы пользователь не вводил его заново.
+        return render_template("login.html", error=message, name=name), 401
 
     session["user_id"] = user.id
+    if request.is_json:
+        return jsonify({"message": "Пользователь авторизован", "user_id": user.id}), 200
     return redirect(url_for("operations"))
 
 
@@ -342,16 +407,24 @@ def logout():
 def add_operation():
     # GET показывает форму добавления операции, POST сохраняет операцию в PostgreSQL.
     if request.method == "GET":
-        return render_template("add_operation.html")
+        return render_template("add_operation.html", **operation_form_context())
 
     data = request.get_json(silent=True) or request.form
     user = current_user()
+    form_data = {
+        "type_operation": str(data.get("type_operation", "")).strip().lower(),
+        "sum": str(data.get("sum", "")).strip(),
+        "date": str(data.get("date", "")).strip(),
+    }
 
     try:
         # Приводим данные формы к нужным типам: строка типа, Decimal для суммы, date для даты.
-        operation_type = str(data.get("type_operation", "")).strip().lower()
-        operation_sum = Decimal(str(data.get("sum", "0"))).quantize(Decimal("0.01"))
-        operation_date = date.fromisoformat(str(data.get("date", "")))
+        operation_type = form_data["type_operation"]
+        try:
+            operation_sum = Decimal(form_data["sum"]).quantize(Decimal("0.01"))
+        except InvalidOperation:
+            raise ValueError("Сумма операции должна быть числом.")
+        operation_date = validate_operation_date(form_data["date"])
 
         if operation_type not in ("income", "expense"):
             raise ValueError("Некорректный тип операции.")
@@ -370,13 +443,20 @@ def add_operation():
 
         if request.is_json:
             return jsonify({"message": "Операция добавлена", "operation_id": operation.id}), 200
-        return render_template("add_operation.html", success="Операция успешно добавлена.")
+        return render_template(
+            "add_operation.html",
+            **operation_form_context(success="Операция успешно добавлена."),
+        )
     except Exception as error:
         # Если при сохранении возникла ошибка, откатываем транзакцию, чтобы не оставить мусор в БД.
         db.session.rollback()
         if request.is_json:
             return jsonify({"message": str(error)}), 400
-        return render_template("add_operation.html", error=str(error)), 400
+        # При ошибке валидации возвращаем введённые данные формы, чтобы пользователь не заполнял всё заново.
+        return render_template(
+            "add_operation.html",
+            **operation_form_context(error=str(error), form_data=form_data),
+        ), 400
 
 
 # ==============================

@@ -15,7 +15,8 @@
     <form class="form" action="{{ url_for('login') }}" method="post">
         <label>
             Логин
-            <input name="name" type="text" required>
+            {# Поправка: сохраняем введённый логин после ошибки, пароль обратно не подставляем #}
+            <input name="name" type="text" value="{{ name or '' }}" required>
         </label>
 
         <label>
