@@ -120,6 +120,13 @@ select:focus {
     outline: 3px solid rgba(15, 159, 110, 0.18);
 }
 
+.field-note {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
 .button {
     background: var(--primary);
     border: 0;

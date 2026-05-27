@@ -1,5 +1,10 @@
 # Импорты
+# os — для пункта 2.3: чтения статических курсов из .env/Docker-окружения
+# decimal.Decimal — для пункта 2.3: проверки, что курс является положительным числом
 # flask — для пункта 2.3: реализации внешнего сервиса курса валют
+
+import os
+from decimal import Decimal, InvalidOperation
 
 from flask import Flask, jsonify, request
 
@@ -15,10 +20,23 @@ app = Flask(__name__)
 # Пункт 2.3 — Статические курсы валют
 # ==============================
 
+def load_rate(env_name, default_value):
+    # Курс можно менять через .env, но сервис все равно проверяет, что это число больше 0.
+    try:
+        rate = Decimal(os.getenv(env_name, default_value))
+    except InvalidOperation:
+        raise RuntimeError(f"{env_name} должен быть числом.")
+
+    if rate <= 0:
+        raise RuntimeError(f"{env_name} должен быть больше 0.")
+
+    return rate
+
+
 RATES = {
     # В учебном задании курс разрешено задать статически.
-    "USD": 90.50,
-    "EUR": 98.20,
+    "USD": load_rate("USD_RATE", "90.50"),
+    "EUR": load_rate("EUR_RATE", "98.20"),
 }
 
 
@@ -37,7 +55,7 @@ def get_rate():
             return jsonify({"message": "UNKNOWN CURRENCY"}), 400
 
         # Успешный ответ содержит только курс выбранной валюты.
-        return jsonify({"rate": RATES[currency]}), 200
+        return jsonify({"rate": float(RATES[currency])}), 200
     except Exception:
         return jsonify({"message": "UNEXPECTED ERROR"}), 500
 

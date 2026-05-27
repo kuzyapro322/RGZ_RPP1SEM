@@ -15,12 +15,14 @@
     <form class="form" action="{{ url_for('register') }}" method="post">
         <label>
             Логин
-            <input name="name" type="text" required>
+            <input name="name" type="text" minlength="3" maxlength="80" pattern="[A-Za-z0-9_]+" required>
+            <span class="field-note">Латинские буквы, цифры или нижнее подчеркивание.</span>
         </label>
 
         <label>
             Пароль
-            <input name="password" type="password" required>
+            <input name="password" type="password" minlength="6" required>
+            <span class="field-note">Минимум 6 символов, хотя бы одна буква и одна цифра.</span>
         </label>
 
         <button class="button" type="submit">Создать аккаунт</button>
